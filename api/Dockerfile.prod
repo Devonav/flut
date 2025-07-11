@@ -1,0 +1,47 @@
+# Stage 1: Build the entire monorepo
+# This stage installs all dependencies and builds all packages
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy all package.json and lock files
+COPY package.json package-lock.json* ./
+COPY api/package.json ./api/
+COPY web/package.json ./web/
+COPY mobile/pubspec.yaml ./mobile/
+COPY shared/package.json ./shared/
+
+# Install the root dependencies (needed for monorepo workspaces)
+RUN npm install
+
+# Copy the rest of the source code
+COPY . .
+
+# Build the shared package first, as other packages depend on it
+RUN npm run build -w shared
+
+# Build the api package
+RUN npm run build -w api
+
+
+# Stage 2: Create the final, smaller production image
+# This stage only contains the API's production code
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy production dependencies from the builder stage
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/api/node_modules ./api/node_modules
+
+# Copy the built 'shared' and 'api' packages
+COPY --from=builder /app/shared/dist ./shared/dist
+COPY --from=builder /app/api/dist ./api/dist
+
+# Copy the final package.json for the api
+COPY api/package.json .
+
+EXPOSE 3000
+
+# Command to run the API server
+CMD ["node", "api/dist/server.js"]

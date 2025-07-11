@@ -1,0 +1,41 @@
+# File: /docker-compose.yml
+
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: mongodb_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: pass
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    container_name: api_dev
+    build:
+      context: . # KEY CHANGE: Use the project root as the build context
+      dockerfile: ./api/Dockerfile.dev # KEY CHANGE: Point to the Dockerfile within the context
+    volumes:
+      # Mount the api source code for hot-reloading
+      - ./api/src:/app/src
+      # Isolate the container's node_modules to prevent conflicts
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.dev
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+    driver: local

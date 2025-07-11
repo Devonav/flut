@@ -1,0 +1,29 @@
+
+version: '3.8'
+services:
+  web:
+    image: timesnotrelative/web-app:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+
+  api:
+    image: timesnotrelative/api-app:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:6.0
+    restart: unless-stopped
+    volumes:
+      - mongo_prod_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+
+volumes:
+  mongo_prod_data:

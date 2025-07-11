@@ -1,0 +1,28 @@
+# Builder stage
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+# Copy shared package files and install
+COPY shared/package*.json shared/package-lock.json ./shared/
+WORKDIR /app/shared
+RUN npm install
+
+# Go back to root and copy web package files
+WORKDIR /app
+COPY web/package*.json web/package-lock.json ./web/
+WORKDIR /app/web
+RUN npm install
+
+# Copy all source code
+WORKDIR /app
+COPY . .
+
+# Build the web app
+WORKDIR /app/web
+RUN npm run build
+
+# Production stage
+FROM nginx:alpine
+COPY --from=builder /app/web/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
